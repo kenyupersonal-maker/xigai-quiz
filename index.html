@@ -18,18 +18,18 @@
 <style>
 :root{
   --bg:#F5F6F8; --card:#FFFFFF; --page:#FFFFFF;
-  --text:#1D2129; --text2:#4E5969; --text3:#86909C; --line:#E5E6EB; --fill:#F2F3F5; --opt:#F7F8FA; --ring:#C9CDD4;
+  --text:#16191F; --text2:#3D4654; --text3:#6B7380; --line:#E5E6EB; --fill:#F2F3F5; --opt:#F7F8FA; --ring:#C9CDD4;
   --pri:#1D2129; --pri-soft:#EEF0F3; --on-pri:#FFFFFF;
   --ok:#00B42A; --ok-soft:#E8FFEA; --bad:#F53F3F; --bad-soft:#FFECE8; --warn:#FF7D00; --warn-soft:#FFF3E8;
   --key:rgba(255,190,20,.42);
   --font:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Noto Sans SC","Noto Sans CJK SC","Microsoft YaHei",sans-serif;
-  --fs-stem:20px; --fs-opt:17px; --fs-read:16px;
+  --fs-stem:22px; --fs-opt:18px; --fs-read:17px;
   --dock-h:80px; --hdr-h:48px;
 }
-html.fs-l{--fs-stem:22px;--fs-opt:19px;--fs-read:18px}
+html.fs-l{--fs-stem:26px;--fs-opt:20px;--fs-read:19px}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#17171A; --card:#232324; --page:#1D1D20;
-  --text:#F2F3F5; --text2:#C9CDD4; --text3:#86909C; --line:#333336; --fill:#2C2C2F; --opt:#28282B; --ring:#5C5F66;
+  --text:#F5F6F8; --text2:#D2D6DC; --text3:#9DA3AD; --line:#333336; --fill:#2C2C2F; --opt:#28282B; --ring:#5C5F66;
   --pri:#F2F3F5; --pri-soft:rgba(255,255,255,.10); --on-pri:#17171A;
   --ok:#27C346; --ok-soft:rgba(39,195,70,.16); --bad:#F76965; --bad-soft:rgba(247,105,101,.16); --warn:#FF9A2E; --warn-soft:rgba(255,154,46,.16);
   --key:rgba(255,190,20,.30);
@@ -184,7 +184,7 @@ html[data-view="practice"] .hdr,html[data-view="exam"] .hdr{background:var(--pag
 /* ---------- practice / exam ---------- */
 .q{display:flex;flex-direction:column;min-height:calc(100vh - var(--hdr-h) - 3px - env(safe-area-inset-top) - var(--dock-h));min-height:calc(100dvh - var(--hdr-h) - 3px - env(safe-area-inset-top) - var(--dock-h));margin-bottom:var(--dock-h);padding-top:16px;padding-bottom:16px}
 .qmeta{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;font:13px/1.4 var(--font);color:var(--text3)}
-.stem{font:600 var(--fs-stem)/1.6 var(--font);margin-top:12px;letter-spacing:.01em}
+.stem{font:600 var(--fs-stem)/1.55 var(--font);margin-top:12px;letter-spacing:.01em}
 .grow{flex:1 1 auto;min-height:24px}
 html.novh .q{min-height:calc(var(--app-h) - var(--hdr-h) - 3px - env(safe-area-inset-top) - var(--dock-h))}
 .mid{margin-top:14px}
@@ -205,7 +205,7 @@ html.novh .q{min-height:calc(var(--app-h) - var(--hdr-h) - 3px - env(safe-area-i
 .opt.bad .k{background:var(--bad);border-color:var(--bad);color:#fff}
 .opt.miss{background:var(--ok-soft);border-color:var(--ok);border-style:dashed}
 .opt.miss .k{border-color:var(--ok);color:var(--ok)}
-.opt.dim{opacity:.5}
+.opt.dim{opacity:.6}
 .opt.tap{animation:pulse 1.2s ease-in-out .8s 2}
 @keyframes pulse{50%{box-shadow:0 0 0 4px var(--ok-soft)}}
 .opts.locked .opt{pointer-events:none}
@@ -652,14 +652,18 @@ function S(id){return st.stats[id]}
    隔开答对 4 次才算过；中途答错就从头来。
    间隔太短的重复答对（不到 15 题且不到 20 分钟）不计数，防止连着刷几遍就“过”了。
    很久没刷时，到了 1/2/4/7 天也会提前出来。                                         */
-var REQ=4, GAP=[25,40,90,200], WEIGHT=[3,2,1,1], DAYS=[1,2,4,7], MIN_N=15, MIN_T=20*60*1000;
+var REQ=4, GAP=[25,40,90,200,90], WEIGHT=[3,2,1,1,.5], DAYS=[1,2,4,7,3], MIN_N=15, MIN_T=20*60*1000;
+/* 第一次就答对的题：隔 70 到 110 题左右再抽查一次（第 5 档，权重最低）。错题优先，抽查最多每 5 道题插 1 道 */
+var CHECK=4;
 function mastered(id){var s=S(id);return !!s&&s.l===1&&(s.w===0||s.s>=REQ)}
 function isWrong(id){var s=S(id);return !!s&&s.w>0&&s.s<REQ}
 function jitter(x){return Math.max(1,Math.round(x*(0.8+Math.random()*0.4)))}
 function schedule(id){
   var s=S(id);
   st.queue=st.queue.filter(function(x){return x.id!==id});
-  if(!s||s.w===0||s.s>=REQ) return;
+  if(!s) return;
+  if(s.w===0){ if(s.c===1) st.queue.push({id:id,lv:CHECK,at:st.n+jitter(GAP[CHECK]),t:Date.now()+DAYS[CHECK]*864e5}); return }
+  if(s.s>=REQ) return;
   var lv=Math.min(s.s,REQ-1);
   st.queue.push({id:id,lv:lv,at:st.n+jitter(GAP[lv]),t:Date.now()+DAYS[lv]*864e5});
 }
@@ -808,12 +812,16 @@ function tile(act,c,ic,t,sub,cls){
 }
 
 /* ---------- practice ---------- */
+function jitterOrder(list,W){return list.map(function(q,i){return {q:q,k:i+Math.random()*W}}).sort(function(a,b){return a.k-b.k}).map(function(x){return x.q})}
 function firstOpen(list){for(var i=0;i<list.length;i++){if(!mastered(list[i].id))return i}return 0}
 function startSession(mode,arg){
   var list,i=0,title='';
-  if(mode==='seq'){list=Q.slice();i=st.pos||0;if(i>=list.length)i=0}
+  if(mode==='seq'){
+    // 总体还是常考的在前，但每一轮在小范围里打乱一点，每道题前后挪动不超过 10 个位置
+    if(!st.order||st.order.length!==Q.length||st.order.some(function(id){return !byId[id]})){st.order=jitterOrder(Q,10).map(function(q){return q.id});save()}
+    list=st.order.map(function(id){return byId[id]});i=st.pos||0;if(i>=list.length)i=0}
   else if(mode==='tier'){list=tierList[arg].slice();i=firstOpen(list);title=TIER[arg]}
-  else if(mode==='chapter'){list=chapList[arg].slice();i=firstOpen(list);title=CH[arg].k}
+  else if(mode==='chapter'){list=jitterOrder(chapList[arg],6);i=firstOpen(list);title=CH[arg].k}
   else if(mode==='wrong'){list=Q.filter(function(q){return isWrong(q.id)});title='错题本';if(!list.length){toast('错题本是空的');return}}
   else if(mode==='list'){list=arg.map(function(id){return byId[id]});title='练错题'}
   var ids={}; list.forEach(function(q){ids[q.id]=1});
@@ -828,13 +836,20 @@ function pickDue(){
   var now=Date.now(), curId=ses.cur&&ses.cur.id;
   var due=st.queue.filter(function(x){return ses.ids[x.id]&&x.id!==curId&&(x.at<=st.n||(x.t||Infinity)<=now)});
   if(!due.length) return false;
-  if(ses.since<(due.length>15?1:2)) return false;
+  var dueW=due.filter(function(x){return x.lv!==CHECK}), dueC=due.filter(function(x){return x.lv===CHECK});
+  if(dueW.length){
+    if(ses.since<(dueW.length>15?1:2)) return false;
+    // 有错题在等时，每 3 个复习位里留 1 个给抽查答对过的题，别让抽查一直排不上
+    due= dueC.length&&(ses.rc||0)%3===2 ? dueC : dueW;
+  }else if(ses.since<4) return false;   // 只有抽查时：最多每 5 道插 1 道
+  ses.rc=(ses.rc||0)+1;
   function score(x){var lv=x.lv||0;return (Math.max(0,st.n-x.at)/GAP[lv]+1)*WEIGHT[lv]}
   due.sort(function(a,b){return score(b)-score(a)});
   ses.cur=byId[due[0].id]; ses.rev=true; ses.since=0;
   return true;
 }
-function resetQ(){ses.sel={};ses.phase='ask';ses.ok=null;ses.gaveUp=false}
+function resetQ(){ses.sel={};ses.phase='ask';ses.ok=null;ses.gaveUp=false;ses.permId=null}
+function curPerm(q){if(ses.permId!==q.id){ses.permId=q.id;ses.perm=newPerm(q)}return ses.perm}
 function optState(q,L){
   var s=ses, inAns=q.a.indexOf(L)>=0, picked=!!s.sel[L];
   if(s.phase==='ask') return picked?'sel':'';
@@ -844,9 +859,12 @@ function optState(q,L){
   if(picked) return 'bad';
   return 'dim';
 }
-function optionsHTML(q,stateFn,act,locked,hintCorrect){
-  return '<div class="opts'+(q.t==='m'?' m':'')+(locked?' locked':'')+'">'+q.o.map(function(o,k){
-    var L=LET[k], c=stateFn(q,L), mark=L;
+/* 选项顺序每次出题都打乱，免得记住“答案在第几个”就不过脑子点 */
+function newPerm(q){return shuffle(q.o.map(function(o,k){return k}))}
+function optionsHTML(q,stateFn,act,locked,hintCorrect,perm){
+  perm=perm||q.o.map(function(o,k){return k});
+  return '<div class="opts'+(q.t==='m'?' m':'')+(locked?' locked':'')+'">'+perm.map(function(k,pos){
+    var o=q.o[k], L=LET[k], c=stateFn(q,L), mark=LET[pos];
     if(c==='ok') mark=ICON.check; else if(c==='bad') mark=ICON.cross;
     var extra= c==='miss'?'<span class="lab">漏选</span>':'';
     var tap= hintCorrect&&q.a.indexOf(L)>=0 ? ' tap' : '';
@@ -857,7 +875,7 @@ function optionsHTML(q,stateFn,act,locked,hintCorrect){
 function labelsHTML(q,o){
   var h='';
   if(q.t==='m') h+='<span class="tag m">多选</span>';
-  if(o.again){var sx=S(q.id); h+='<span class="tag again">错题再练 '+Math.min((sx?sx.s:0)+1,REQ)+'/'+REQ+'</span>'}
+  if(o.again&&isWrong(q.id)){var sx=S(q.id); h+='<span class="tag again">错题再练 '+Math.min((sx?sx.s:0)+1,REQ)+'/'+REQ+'</span>'}
   if(o.mix&&q.g) h+='<span class="tag mix">易混</span>';
   return h?'<div class="qlabels">'+h+'</div>':'';
 }
@@ -878,6 +896,7 @@ function commonPrefix(arr){
 }
 /* 答完以后列出长得像的一组题：同一组问法（题眼）、同一组选项、同一个答案 */
 function relatedHTML(q){
+  return '';   // “对比着记”先关掉：答题时没时间看一整组题。要恢复，删掉这一行
   var seen={}, rel=[];
   function add(o){if(!seen[o.id]){seen[o.id]=1;rel.push(o)}}
   if(q.f) fams[q.f].forEach(add);
@@ -913,7 +932,7 @@ V.practice=function(){
   // 对比和解析放在题干和选项之间的空白处，不另外弹提示
   var mid= (s.phase!=='ask'&&!(s.ok&&st.auto)) ? relatedHTML(q)+expHTML(q) : '';
   h+='<main class="wrap q" data-swipe="1"><div class="stem">'+stemHTML(q.s,q.k)+'</div>'+(mid?'<div class="mid">'+mid+'</div>':'')+'<div class="grow"></div>'+
-     labelsHTML(q,{again:s.rev})+optionsHTML(q,optState,'pick',s.phase==='fix',wrongNow)+'</main>';
+     labelsHTML(q,{again:s.rev})+optionsHTML(q,optState,'pick',s.phase==='fix',wrongNow,curPerm(q))+'</main>';
   return h+practiceDock(q);
 };
 function practiceDock(q){
@@ -951,12 +970,13 @@ function fixAndGo(){
   var s=ses, q=s.cur; s.sel={};
   q.a.split('').forEach(function(L){s.sel[L]=true});
   s.phase='fix'; fx='fix'; render();
-  timer=setTimeout(next,420);
+  // 有“对比着记”或解析可看时不自动跳，看完自己点“下一题”；什么都没有才直接跳
+  if(!(relatedHTML(q)+expHTML(q))) timer=setTimeout(next,420);
 }
 function next(){
   clearTimeout(timer);
   var s=ses; if(!s||!s.cur) return;
-  if(!s.rev){ s.i++; if(s.mode==='seq'){st.pos=s.i>=s.list.length?0:s.i;save()} }
+  if(!s.rev){ s.i++; if(s.mode==='seq'){st.pos=s.i>=s.list.length?0:s.i; if(s.i>=s.list.length) st.order=null; save()} }
   resetQ(); s.rev=false;
   if(!pickDue()){
     if(s.i<s.list.length){ s.cur=s.list[s.i]; s.since++ }
@@ -988,7 +1008,8 @@ function startExam(n){
   var pool=examPool(), s=shuffle(pool.filter(function(q){return q.t==='s'})), m=shuffle(pool.filter(function(q){return q.t==='m'}));
   n=Math.min(n,pool.length);
   var ns=Math.round(n*s.length/pool.length);
-  exam={list:s.slice(0,ns).concat(m.slice(0,n-ns)),ans:{},i:0,t0:Date.now()};
+  exam={list:s.slice(0,ns).concat(m.slice(0,n-ns)),ans:{},i:0,t0:Date.now(),perm:{}};
+  exam.list.forEach(function(q){exam.perm[q.id]=newPerm(q)});
   go('exam');
 }
 V.exam=function(){
@@ -996,7 +1017,7 @@ V.exam=function(){
   var picked=e.ans[q.id]||'';
   var h=header('模拟考<small>第 '+(e.i+1)+' 题，已答 '+answered+' / '+e.list.length+'</small>',{close:true,side:'交卷',link:'submit',prog:pct(e.i+1,e.list.length)});
   h+='<main class="wrap q" data-swipe="1"><div class="stem">'+stemHTML(q.s,q.k)+'</div><div class="grow"></div>'+labelsHTML(q,{})+
-     optionsHTML(q,function(q,L){return picked.indexOf(L)>=0?'sel':''},'epick',false,false)+'</main>';
+     optionsHTML(q,function(q,L){return picked.indexOf(L)>=0?'sel':''},'epick',false,false,e.perm[q.id])+'</main>';
   h+='<div class="dock"><div class="wrap act"><button class="btn sec narrow" data-act="eprev"'+(e.i?'':' disabled')+'>上一题</button>';
   h+= e.i+1<e.list.length ? '<button class="btn pri" data-act="enext">下一题</button>' : '<button class="btn pri" data-act="submit">交卷</button>';
   return h+'</div></div>';
@@ -1022,7 +1043,7 @@ V.examresult=function(){
     h+='<div class="secttl">做错和没答的 '+r.wrongIds.length+' 题</div><div style="text-align:left">';
     r.wrongIds.forEach(function(id){
       var q=byId[id], mine=r.ans[id]||'';
-      h+='<article class="qc"><div class="qm">'+(q.t==='m'?'<span class="tag m">多选</span>':'')+'<span>你选 '+(mine||'没答')+'</span><span>正确 '+q.a+'</span></div><div class="qs">'+stemHTML(q.s,q.k)+'</div><ol class="qo'+(q.t==='m'?' m':'')+'">'+
+      h+='<article class="qc"><div class="qm">'+(q.t==='m'?'<span class="tag m">多选</span>':'')+(mine?'':'<span>没答</span>')+'</div><div class="qs">'+stemHTML(q.s,q.k)+'</div><ol class="qo'+(q.t==='m'?' m':'')+'">'+
         q.o.map(function(o,k){var L=LET[k], inA=q.a.indexOf(L)>=0;return '<li class="'+(inA?'ok':(mine.indexOf(L)>=0?'bad':''))+'"><span class="k">'+(inA?ICON.check:L)+'</span><span>'+esc(o)+'</span></li>'}).join('')+'</ol></article>';
     });
     h+='</div>';
@@ -1111,9 +1132,9 @@ V.settings=function(){
      '<button class="row" data-act="big" role="switch" aria-checked="'+(!!st.big)+'"><span class="t">大字号<small>题目和选项再大一号</small></span><span class="sw"></span></button></nav>';
   h+='<nav class="list"><button class="row danger" data-act="reset"><span class="t">清空全部做题记录</span></button></nav>';
   h+='<div class="info"><p>题库：选择题 '+Q.length+' 道（单选 '+DATA.meta.single+'，多选 '+DATA.meta.multi+'），简答和材料题 '+DATA.short.length+' 道。Excel 的 '+DATA.meta.xlsx+' 道题全部包含在 Word 里，答案两边一致；Excel 有 4 道题选项抄错了，用的是 Word 的版本。</p>'+
-     '<p>顺序：“继续刷题”就是全部 '+Q.length+' 道按顺序刷，常考的在前，越往后越冷门。两份题库都有的题排前面，其中问“根本、核心、首要、最、基本”这类定义的题和同一个考点出了好几道的题最靠前；只在 Word 里有的放最后。这是按题库估的，不是真实考试统计。</p>'+
-     '<p>标黄：长得像的题（比如开头都是“习近平新时代中国特色社会主义思想的……”），起区分作用的那几个字划了淡黄色。答错后，题目下面会列出同一组题各自的答案，对比着记。</p>'+
-     '<p>错题：答错的题隔 25 题左右再出，之后每答对一次间隔拉长，大约 40、90、200 题，隔开答对 4 次才算过，中途答错就从头来。连着刷几遍答对不算数。复习题平时每 2 道新题插 1 道，积压多时每道新题插 1 道，最多占一半，不会拖住进度。隔了好几天没刷，到时间也会提前出来。</p>'+
+     '<p>顺序：“继续刷题”就是全部 '+Q.length+' 道按顺序刷，常考的在前，越往后越冷门。两份题库都有的题排前面，其中问“根本、核心、首要、最、基本”这类定义的题和同一个考点出了好几道的题最靠前；只在 Word 里有的放最后。这是按题库估的，不是真实考试统计。每一轮会在小范围里打乱一点（每道题前后挪动不超过 10 个位置），选项顺序每次出题也重新打乱，免得记住位置就不过脑子点。</p>'+
+     '<p>标黄：长得像的题（比如开头都是“习近平新时代中国特色社会主义思想的……”），起区分作用的那几个字划了淡黄色。</p>'+
+     '<p>错题：答错的题隔 25 题左右再出，之后每答对一次间隔拉长，大约 40、90、200 题，隔开答对 4 次才算过，中途答错就从头来。连着刷几遍答对不算数。复习题平时每 2 道新题插 1 道，积压多时每道新题插 1 道，最多占一半，不会拖住进度。隔了好几天没刷，到时间也会提前出来。第一次就答对的题，隔 90 题左右会再抽查一次，最多每 5 道题插 1 道，错题优先。</p>'+
      '<p>解析：'+(nexp?'已载入 '+nexp+' 道'+(ndoubt?'，其中 '+ndoubt+' 道答案可能有问题':''):'还没有，等 ChatGPT 生成后放进来')+'。</p>'+
      '<p>进度：'+(storageOK?'存在这台手机的这个打开方式里。换 App 打开或清掉网站数据，记录会重新开始。':'当前打开方式不能保存进度。')+'</p></div>';
   return h+'</main>';
@@ -1186,7 +1207,7 @@ app.addEventListener('click',function(ev){
     case 'big': st.big=!st.big; save(); document.documentElement.classList.toggle('fs-l',!!st.big); render(); break;
     case 'reset':
       if(armed!=='reset'){armed='reset';$('.t',el).textContent='再点一次，确认清空';setTimeout(function(){if(armed==='reset'){armed=null;if(view==='settings')render()}},3000);return}
-      armed=null; st={stats:{},pos:0,auto:st.auto,big:st.big,shortDone:{},scope:st.scope,queue:[],n:0}; save(); toast('已清空'); go('home',true); break;
+      armed=null; st={stats:{},pos:0,auto:st.auto,big:st.big,shortDone:{},scope:st.scope,queue:[],n:0,order:null}; save(); toast('已清空'); go('home',true); break;
   }
 });
 /* swipe on a question: left = next (after answering), right = previous */
