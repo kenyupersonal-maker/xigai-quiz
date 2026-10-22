@@ -1,5 +1,5 @@
 // 离线缓存：第一次联网打开后，断网也能用
-const CACHE = 'xigai-4faa38ab33';
+const CACHE = 'xigai-105da6b539';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-180.png', './icon-512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
